@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!--
-    TOP-LEVEL FRAME — hosted on second domain (e.g. Netlify / GitHub Pages)
-    This is the "convincing" origin the user sees in the browser omnibox.
-    It embeds trigger.html from 1.hackeronce.com via allow="payment" iframe.
+    TOP-LEVEL FRAME — deployed at https://sho3hit.github.io/applevault-poc/
+    Embeds trigger.html (1.hackeronce.com) as the Apple Pay button via iframe.
+    allow="payment" delegates PaymentRequest permission to the cross-origin iframe.
+    NO sandbox attribute — Safari doesn't support allow-payment-request in sandbox.
 
-    TEST OBJECTIVE:
-    Does the Apple Pay sheet show THIS page's domain or 1.hackeronce.com?
+    TEST: Does Apple Pay sheet show sho3hit.github.io or 1.hackeronce.com?
   -->
   <title>Checkout — AppleVault</title>
   <style>
@@ -23,6 +23,7 @@
       --muted:   #8888a0;
       --accent:  #0071e3;
       --green:   #22c55e;
+      --red:     #ef4444;
       --radius:  16px;
       --font:    -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
     }
@@ -58,6 +59,7 @@
       text-align: center; text-transform: uppercase;
     }
 
+    /* Header */
     .card-header {
       padding: 24px 24px 0;
       display: flex; align-items: center; gap: 12px;
@@ -66,7 +68,7 @@
       width: 36px; height: 36px;
       background: linear-gradient(135deg, #003d82, #0071e3);
       border-radius: 10px;
-      display: grid; place-items: center;
+      display: grid; place-items: center; flex-shrink: 0;
     }
     .logo svg { width: 18px; height: 18px; fill: #fff; }
     .brand { font-size: 17px; font-weight: 700; }
@@ -79,6 +81,7 @@
       padding: 3px 9px; border-radius: 99px;
     }
 
+    /* Product */
     .product {
       margin: 20px 24px 0;
       padding: 16px;
@@ -99,6 +102,7 @@
     .product-price { margin-left: auto; font-size: 20px; font-weight: 700; flex-shrink: 0; }
     .product-price span { font-size: 11px; color: var(--muted); font-weight: 400; }
 
+    /* Summary */
     .summary { margin: 16px 24px 0; }
     .summary-title {
       font-size: 10px; font-weight: 600; text-transform: uppercase;
@@ -114,66 +118,70 @@
       font-size: 14px; font-weight: 600; color: var(--text);
     }
 
-    /* ── The iframe IS the pay button ── */
-    .pay-wrap {
-      margin: 20px 24px 24px;
-      position: relative;
-    }
-
-    .pay-label {
-      /* Visual button the user sees */
-      width: 100%; height: 52px;
-      background: #fff; color: #000;
-      border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-      gap: 8px;
-      font-size: 17px; font-weight: 600;
-      pointer-events: none; /* iframe on top handles clicks */
-      user-select: none;
-    }
-    .pay-label svg { width: 20px; height: 20px; fill: #000; }
+    /* Pay section */
+    .pay-section { padding: 20px 24px 0; }
 
     /*
-     * The iframe is positioned EXACTLY over the button visual.
-     * User thinks they're clicking the button.
-     * They're actually clicking inside the iframe.
-     * This passes the user gesture directly to the iframe context.
-     * PaymentRequest.show() in iframe is then a valid user-gesture-triggered call.
+     * THE FIX:
+     * iframe IS the Apple Pay button — no overlay, no opacity tricks.
+     * User taps the iframe directly = real user gesture in iframe context.
+     * PaymentRequest.show() inside iframe has a valid activation.
+     * border-radius clips the iframe corners to match button style.
      */
     #payFrame {
-      position: absolute;
-      inset: 0;
-      width: 100%; height: 100%;
+      display: block;
+      width: 100%;
+      height: 52px;
       border: none;
-      background: transparent;
-      opacity: 0;           /* invisible — button visual is underneath */
-      z-index: 10;          /* sits above the button visual */
+      border-radius: 10px;
+      overflow: hidden;    /* clips button corners inside iframe */
     }
+
+    .divider {
+      display: flex; align-items: center; gap: 10px;
+      margin: 14px 0;
+      font-size: 11px; color: var(--muted);
+    }
+    .divider::before, .divider::after {
+      content: ''; flex: 1;
+      height: 1px; background: var(--border);
+    }
+
+    .btn-card {
+      width: 100%;
+      background: transparent; color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px; height: 48px;
+      cursor: pointer; font-size: 14px; font-weight: 500;
+      font-family: var(--font);
+    }
+    .btn-card:active { background: rgba(255,255,255,0.05); }
 
     .terms {
       text-align: center; font-size: 10px; color: var(--muted);
-      line-height: 1.5; margin-top: 12px;
+      line-height: 1.5; margin: 14px 0 0;
     }
 
     /* Debug panel */
     #debug {
-      margin: 0 24px 20px;
+      margin: 20px 24px;
       padding: 12px;
       background: rgba(0,113,227,0.05);
       border: 1px solid rgba(0,113,227,0.15);
       border-radius: 8px;
-      font-size: 11px; font-family: 'SF Mono', monospace;
-      color: var(--muted); line-height: 1.6;
-      display: none;
+      font-size: 11px; font-family: 'SF Mono', 'Courier New', monospace;
+      color: var(--muted); line-height: 1.8;
     }
-    #debug.visible { display: block; }
-    #debug .label { color: var(--accent); }
+    #debug .lbl  { color: var(--accent); }
+    #debug .ok   { color: var(--green); }
+    #debug .err  { color: var(--red); }
+    #debug .note { color: #f59e0b; font-size: 10px; margin-top: 6px; }
   </style>
 </head>
 <body>
 
   <div class="card">
-    <div class="poc-banner">⚠ Path 2 Test — iframe allow="payment" Delegation</div>
+    <div class="poc-banner">⚠ Path 2 — iframe allow="payment" Delegation Test</div>
 
     <div class="card-header">
       <div class="logo">
@@ -209,66 +217,63 @@
       <div class="summary-row total"><span>Total today</span><span>$31.29</span></div>
     </div>
 
-    <div class="pay-wrap">
-      <!-- Visual button (non-interactive, just for appearance) -->
-      <div class="pay-label">
-        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-        </svg>
-        Pay with Apple Pay
-      </div>
-
+    <div class="pay-section">
       <!--
-        CRITICAL: iframe sits invisibly on top of the button.
-        allow="payment" delegates PaymentRequest permission to this cross-origin iframe.
-        User's tap registers as a tap INSIDE the iframe = valid user gesture for PaymentRequest.
-        Trigger.html (on 1.hackeronce.com) calls PaymentRequest.show().
-        Safari decides: show THIS page's origin or 1.hackeronce.com in the sheet?
+        iframe = the button.
+        allow="payment"  → grants PaymentRequest API to cross-origin iframe.
+        NO sandbox       → sandbox blocks PaymentRequest in Safari even with allow-payment-request.
+        height: 52px     → matches Apple Pay button height exactly.
+        User taps here   → tap is inside iframe = direct user gesture = PaymentRequest works.
       -->
       <iframe
         id="payFrame"
         src="https://1.hackeronce.com/assets/trigger.html"
         allow="payment"
-        sandbox="allow-scripts allow-same-origin allow-forms allow-payment-request"
         scrolling="no">
       </iframe>
+
+      <div class="divider">or pay another way</div>
+      <button class="btn-card" onclick="return false;">Pay with Card</button>
+
+      <p class="terms">
+        Storage plan renews at $35.88/yr. Cancel anytime in account settings.<br>
+        Requires iOS 16, macOS Ventura, or later.
+      </p>
     </div>
 
+    <!-- Debug panel: shows which origin appears in Apple Pay sheet -->
     <div id="debug">
-      <div><span class="label">Top frame origin:</span> <span id="dbg-top"></span></div>
-      <div><span class="label">iframe origin:</span> 1.hackeronce.com</div>
-      <div><span class="label">iframe status:</span> <span id="dbg-status">loading...</span></div>
-      <div><span class="label">PaymentRequest result:</span> <span id="dbg-result">—</span></div>
-      <div style="margin-top:6px;color:#ef4444;font-size:10px">
-        ★ Check Apple Pay sheet: which origin appears under "Total"?
+      <div><span class="lbl">Top frame origin :</span> <span id="dbg-top">—</span></div>
+      <div><span class="lbl">iframe origin    :</span> <span>1.hackeronce.com</span></div>
+      <div><span class="lbl">iframe status    :</span> <span id="dbg-status">loading…</span></div>
+      <div><span class="lbl">PaymentRequest   :</span> <span id="dbg-result">—</span></div>
+      <div class="note">
+        ★ After tapping Apple Pay → check which origin appears under "Total" in the sheet
       </div>
     </div>
-
-    <p class="terms">
-      Storage plan renews at $35.88/yr. Cancel anytime in account settings.
-      Requires iOS 16 or later.
-    </p>
   </div>
 
   <script>
-    // Show debug panel
-    const debug = document.getElementById('debug');
-    debug.classList.add('visible');
     document.getElementById('dbg-top').textContent = window.location.origin;
 
-    // Listen for messages from iframe
     window.addEventListener('message', function(e) {
-      // Only accept from our iframe origin
-      if (!e.origin.includes('hackeronce.com')) return;
+      if (e.origin !== 'https://1.hackeronce.com') return;
 
       if (e.data && e.data.type === 'iframe-ready') {
-        document.getElementById('dbg-status').textContent = '✅ Ready';
-        document.getElementById('dbg-status').style.color = '#22c55e';
+        const el = document.getElementById('dbg-status');
+        el.textContent = '✅ Ready';
+        el.className = 'ok';
       }
 
       if (e.data && e.data.type === 'payment-result') {
-        document.getElementById('dbg-result').textContent =
-          e.data.error + ': ' + e.data.message;
+        const el = document.getElementById('dbg-result');
+        if (e.data.error) {
+          el.textContent = e.data.error + ': ' + e.data.message;
+          el.className = 'err';
+        } else {
+          el.textContent = '✅ Sheet shown';
+          el.className = 'ok';
+        }
       }
     });
   </script>
